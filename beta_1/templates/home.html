@@ -1,0 +1,16 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+    <ul>
+        {% for product in products %}
+            <li>
+                <h2>{{product.name}}</h2>
+                <p>{{product.descriptions}}</p>
+                <p>{{product.price}}</p>
+                <img src="{{product.image.url}}" alt="">
+            </li>
+        {% endfor %}
+    </ul>
+        
+{% endblock content %}
