@@ -8,6 +8,7 @@
                 <h2>{{product.name}}</h2>
                 <p>{{product.descriptions}}</p>
                 <p>{{product.price}}</p>
+                <a href="{% url 'product_detail' id=product.id %}">Подробнее</a>
                 <img src="{{product.image.url}}" alt="">
             </li>
         {% endfor %}
