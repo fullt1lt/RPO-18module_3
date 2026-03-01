@@ -1,0 +1,10 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<form action="{% url 'form-view' %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{form.as_ul }}
+    <button type="submit">ОТПРАВЬ МЕНЯЯ!!!</button>
+</form>
+{% endblock content %}
