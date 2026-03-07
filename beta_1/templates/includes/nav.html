@@ -4,6 +4,16 @@
       <a href="{% url 'home'%}">Home</a>
       <a href="{% url 'form-view'%}">FORM</a>
       <a href="{% url 'create-product'%}">CREATE PRODUCT</a>
+      {% if user.is_authenticated %}
+      <p>{{user.username}}</p>
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">LOG OUT</button>
+      </form>
+      {% else %}
+      <a href="{% url 'register'%}">REGISTER</a>
+      <a href="{% url 'login'%}">LOG IN</a>
+      {% endif %}
     </li>
   </ul>
 </nav>

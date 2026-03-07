@@ -1,5 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User, AbstractUser
+
+# class User(AbstractUser):
+#     pass
 
 
 class Product(models.Model):
