@@ -1,7 +1,24 @@
-{% extends 'base/base.html' %} {% load static %}
-{% block content %}
-<div>
-  "About us"
-</div>
+{% extends 'base/base.html' %} {% load static %} {% block content %}
+{% load cache %}
+
+<form method="post">
+  {% csrf_token %}
+  <select name="theme">
+    <option value="dark">Dark</option>
+    <option value="light">Light</option>
+  </select>
+  <button type="submit">Submit</button>
+</form>
+
+<div>"About us" {{title}} {{title2}}</div>
+
+{% for prod in products %}
+<h3>{{prod.name}}</h3>
+
+{% endfor %} {{product.name}}
+{% cache 6 cache_name dynamic_var %}
+<h2>{{theme}}</h2>
+{% endcache %}
+
 
 {% endblock content %}

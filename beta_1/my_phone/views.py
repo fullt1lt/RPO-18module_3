@@ -5,10 +5,24 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views import View
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, ListView, DetailView, CreateView, DeleteView
+from django.core.cache import cache
+from django.views.generic.base import RedirectView
+from django.urls import reverse_lazy
+from django.contrib.auth.views import LoginView
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+
 
 from .models import Product, Category
 from .forms import CategoryForm, ProductForm, LoginForm
+
+
+class AdminUserPassesTestMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
+
+class HomeRedirectView(RedirectView):
+    url = reverse_lazy("home")
 
 
 class ExampleView(View):
@@ -17,35 +31,29 @@ class ExampleView(View):
     def get(request, *args, **kwargs):
         return HttpResponse("BCV")
 
-# Create your views here.
-@user_passes_test(lambda u: u.is_superuser)
-def home(request):
-    user_list = ["Alex", "Mark", "Ivan"]
-    isAdmin = True
-    products = Product.objects.filter(price__lte=25000).order_by("-price", "name")
-    # category = Category.objects.get(name="ТЕЛЕФОНЫ")
-    # products = category.product.all()
-    summ = Product.objects.aggregate(Avg("price"))
-    print(summ)
-    context = {
-        "users": user_list,
-        "isAdmin": isAdmin,
-        "products": products
-        }
-    return render(request, "home.html", context)
 
-def product_detail(request, id):
-    try:
-        product = Product.objects.get(id=id)
-    except Product.DoesNotExist:
-        product = None
-    # if product:
-    #     product.price += 1
-    #     product.save()
-    context = {
-        "product": product
-    }
-    return render(request, "product_detail.html", context)
+class HomeListView(ListView):
+    http_method_names = ["get", "post"]
+    model = Product
+    template_name = "home.html"
+    context_object_name = "products"
+    paginate_by = 1
+
+    def get_queryset(self):
+        return cache.get_or_set("products", Product.objects.filter(price__lte=25000).order_by("-price", "name"), timeout=1)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["category"] = Category.objects.all()
+        return context
+
+
+class ProductDetailView(DetailView):
+    template_name = "product_detail.html"
+    model = Product
+    context_object_name = 'product'
+    pk_url_kwarg = "id"
+
 
 def hello(request, name):
     name = name.upper()
@@ -58,23 +66,22 @@ def helloid(request, id):
     return HttpResponse(f"Hello {id}!!!")
 
 
-def form_view(request):
-    if request.method == "GET":
-        form = CategoryForm()
-        context = {
-            "form" : form
+class CategoryCreateView(CreateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = "form.html"
+    success_url = '/home'
+    
+    def form_valid(self, form):
+        if form.cleaned_data["name"].startswith('a'):
+            form.add_error("name", "Error!!!")
+            return self.form_invalid(form)
+        return super().form_valid(form)
+    
+    def get_initial(self):
+        return {
+            "name": "Default"
         }
-        return render(request, "form.html", context=context)
-    if request.method == "POST":
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            form.save()
-            form = CategoryForm()
-            return redirect("home")
-            # return render(request, "form.html", context={"form" : form})
-        context = {"form": form}
-        return render(request, "form.html", context=context)
-
 
 class ProductView(View):
     http_method_names = ["get", "post"]
@@ -109,24 +116,52 @@ def register(request):
         return render(request, "register.html", context=context)
 
 
-def login_user(request):
-    if request.method == "GET":
-        form = LoginForm()
-        context = {"form": form}
-        return render(request, "login.html", context=context)
-    if request.method == "POST":
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            login(request, form.user)
-            return redirect("home")
-        context = {"form": form}
-        return render(request, "login.html", context=context)
-
-
-def logout_user(request):
-    logout(request)
-    return redirect("home")
+class MyLoginView(LoginView):
+    template_name = "login.html"
+    authentication_form = LoginForm
+    redirect_authenticated_user = True
+    next_page = reverse_lazy("home")
 
 
 class AboutUs(TemplateView):
     template_name = "about_us.html"
+    extra_context = {
+        "title2": "Python",
+        "products" : Product.objects.all()
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        theme = self.request.COOKIES.get("theme")
+        product = Product.objects.all().first()
+        key = self.request.session.get("temp", "567")
+        print(key)
+        context["title"] = "Hello!!!"
+        context["product"] = product
+        context["theme"] = theme
+        context["key"] = key
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        theme = request.POST.get("theme")
+
+        request.session["temp"] = "123"
+        response = redirect(request.path)
+
+        if theme:
+            response.set_cookie(
+                key="theme",
+                value=theme,
+                max_age=60 * 60 * 24,
+                httponly=True,
+                samesite="Lax",
+            )
+
+        return response
+
+
+class ProductDeleteView(DeleteView):
+    model = Product
+    pk_url_kwarg = "id"
+    success_url = "/home"
